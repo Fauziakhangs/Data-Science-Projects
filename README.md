@@ -1,5 +1,6 @@
 # Data-Science-Project
 Projects related to predictive modeling, regression models, clustering etc
+
 HW5: This project is related to data analysis and preprocessing of a dataset on student performance. 
 The code covers various aspects of data exploration, data cleaning, data preprocessing, clustering, classification, and evaluation. 
 It includes tasks such as visualizing data distributions, handling imbalanced data, normalizing data, creating dummy variables for 
