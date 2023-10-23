@@ -1,0 +1,440 @@
+---
+title: "HW5"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+date: "2023-06-03"
+---
+
+## a. Data gathering & Integration
+### The first part is to get the data you will use. You may use anything that has not been used in an assignment or tutorial. It must have at least 100 data points and must include both numerical and categorial (or ordinal) variables. I recommend keeping this relatively straightforward because data cleaning can take a lot of time if you choose a large, messy dataset. Kaggle (https://www.kaggle.com/datasets) and the University of California at Irvine (UCI) (https://archive.ics.uci.edu/ml/index.php) maintain collections of datasets, some even telling you if they are good examples for testing specific machine learning techniques. You may also choose to join together more than one dataset, for example to merge data on health outcomes by US state with a dataset on food statistics per state. Merging data is not required and will earn you a bonus point in this step. 
+
+
+```{r}
+library(ggplot2)
+library(GGally)
+library(dplyr)
+#I have choosen a student performance data set in which it consist of 8 attributes
+
+mydata3 <- read.csv("C:/Users/HP/Downloads/StudentsPerformance.csv")
+#View(mydata3)
+names(mydata3)
+summary(mydata3)
+sum(is.na(mydata3))
+```
+
+## b. Data Exploration
+### Using data exploration to understand what is happening is important throughout the pipeline, and is not limited to this step. However, it is important to use some exploration early on to make sure you understand your data. You must at least consider the distributions of each variable and at least some of the relationships between pairs of variables. 
+
+```{r }
+
+mydata3 %>% group_by(gender) %>% summarise("count" = n())
+str(mydata3)
+# there are math.score, reading.score, writing.score are numerical dataset while remaining 5 are categorical.
+
+mean(mydata3$math.score)
+median(mydata3$math.score)
+sd(mydata3$math.score)
+IQR(mydata3$math.score)
+
+mean(mydata3$reading.score)
+median(mydata3$reading.score)
+sd(mydata3$reading.score)
+IQR(mydata3$reading.score)
+plt <- ggplot (mydata3, aes(x = reading.score)) + geom_histogram(binwidth = 20)
+plt
+
+mean(mydata3$writing.score)
+median(mydata3$writing.score)
+sd(mydata3$writing.score)
+IQR(mydata3$writing.score)
+plt <- ggplot (mydata3, aes(x = writing.score, y = race.ethnicity)) + geom_col()
+plt
+
+mydata3 %>% group_by(race.ethnicity) %>% summarise("count" = n())
+
+mydata3 %>% group_by(lunch) %>% summarise("count" = n())
+
+mydata3 %>% group_by(test.preparation.course) %>% summarise("count" = n())
+
+#creating a plot for numerical variables to visualized there distribution
+ggplot(mydata3, aes(reading.score)) + geom_histogram()
+#the reading.score data is slightly negatively skwed 
+ggplot(mydata3, aes(math.score)) + geom_histogram()
+#the math.score data is slightly negatively skwed 
+ggplot(mydata3, aes(writing.score)) + geom_histogram()
+#the writing.score data is slightly negatively skwed 
+# we can assume that the data is close to normalized
+summary(mydata3)
+
+#now lets see the peoportion of categorical data with respect to gender
+table(mydata3$gender, mydata3$race.ethnicity)
+table(mydata3$gender, mydata3$parental.level.of.education)
+table(mydata3$gender, mydata3$lunch)
+
+table(mydata3$gender, mydata3$test.preparation.course)
+
+plot_gender_race <- ggplot(mydata3, aes(x = race.ethnicity, fill = gender)) +
+  geom_bar(position = "fill") +
+  labs(x = "Race/Ethnicity", y = "Proportion", fill = "Gender") +
+  theme_minimal()
+
+plot_gender_race
+
+plot_gender_education <- ggplot(mydata3, aes(x = parental.level.of.education, fill = gender)) +
+  geom_bar(position = "fill") +
+  labs(x = "Parental Level of Education", y = "Proportion", fill = "Gender") +
+  theme_minimal()
+
+plot_gender_education
+
+plot_gender_lunch <- ggplot(mydata3, aes(x = lunch, fill = gender)) +
+  geom_bar(position = "fill") +
+  labs(x = "Lunch", y = "Proportion", fill = "Gender") +
+  theme_minimal()
+
+plot_gender_lunch
+
+plot_gender_test <- ggplot(mydata3, aes(x = test.preparation.course, fill = gender)) +
+  geom_bar(position = "fill") +
+  labs(x = "Test Preparation Course", y = "Proportion", fill = "Gender") +
+  theme_minimal()
+
+plot_gender_test
+
+# there is slight imbalance in data which can lead to loss in accuracy
+minority_class <- mydata3 %>% 
+  count(gender) %>% 
+  filter(n == min(n)) %>% 
+  pull(gender)
+
+# Performing undersampling to protect data from the loss of accuracy
+balanced_data <- mydata3 %>%
+  group_by(gender) %>%
+  sample_n(size = min(table(mydata3$gender)), replace = FALSE) %>%
+  ungroup()
+
+# Check the balanced data
+table(balanced_data$gender, balanced_data$race.ethnicity)
+# The counts are now more balanced compared to the original data, with slight variations across the group A, group B, group C, group D, and group E categories for both females and males.
+table(balanced_data$gender, balanced_data$parental.level.of.education)
+# The counts are now more balanced, with similar counts for associate's degree, bachelor's degree, high school, master's degree, some college, and some high school categories across both females and males.
+table(balanced_data$gender, balanced_data$lunch)
+# The counts are now more balanced, with comparable counts for free/reduced and standard lunch categories across both females and males.
+table(balanced_data$gender, balanced_data$test.preparation.course)
+# The counts are now more balanced, with similar counts for completed and none categories across both females and males.
+
+#Visualizing the balaned data into histogram
+library(ggplot2)
+dev.off()
+ggplot(balanced_data, aes(x = gender, fill = gender)) +
+  geom_bar() +
+  labs(x = "Gender", y = "Count") +
+  ggtitle("Histogram of Gender")
+
+ggplot(balanced_data, aes(x = race.ethnicity, fill = gender)) +
+  geom_bar() +
+  labs(x = "Race/Ethnicity", y = "Count") +
+  ggtitle("Histogram of Race/Ethnicity")
+
+ggplot(balanced_data, aes(x = parental.level.of.education, fill = gender)) +
+  geom_bar() +
+  labs(x = "Parental Level of Education", y = "Count") +
+  ggtitle("Histogram of Parental Level of Education")
+
+ggplot(balanced_data, aes(x = lunch, fill = gender)) +
+  geom_bar() +
+  labs(x = "Lunch", y = "Count") +
+  ggtitle("Histogram of Lunch")
+
+ggplot(balanced_data, aes(x = test.preparation.course, fill = gender)) +
+  geom_bar() +
+  labs(x = "Test Preparation Course", y = "Count") +
+  ggtitle("Histogram of Test Preparation Course")
+# as we can visualized the data set in now fairly balanced.
+str(balanced_data)
+summary(balanced_data)
+
+
+#normalization
+mydata3 <- balanced_data
+names(balanced_data)
+prop_gender_race <- prop.table(table(mydata3$gender, mydata3$race.ethnicity), margin = 2)
+prop_gender_race
+
+
+#found to be imbalanced
+prop_gender_education <- prop.table(table(mydata3$gender, mydata3$parental.level.of.education), margin = 2)
+prop_gender_education
+
+prop_gender_lunch <- prop.table(table(mydata3$gender, mydata3$lunch), margin = 2)
+prop_gender_lunch
+
+prop_gender_test <- prop.table(table(mydata3$gender, mydata3$test.preparation.course), margin = 2)
+prop_gender_test
+
+```
+
+## c. Data Cleaning
+### Don’t forget – this can take a lot of the time of the whole process. Your cleaning process must ensure that there are no missing values and all outliers must be considered. It may be reasonable to just remove rows with missing values, however, if your data or small or that would change the distributions of the variables, that will not be adequate and you will need to consider other options, as discussed in the modules on cleaning. Depending on your data and what you plan to do with it, you may also need to apply other processes we discussed. For example, clean up strings for consistency, deal with date formatting, change variable types between categorical and numeric, bin, smooth, group, aggregate or reshape. Make the case with visualization or by showing resulting summary statistics that your data are clean enough to continue with your analysis. 
+
+
+```{r }
+ #data cleaning. Fortunately this data seems to be mostly stright forward with no missing values.
+# Moreover, with respect to outliers so we do want to include scores of lowest acehivers.
+summary(mydata3)
+
+plt <- ggplot(mydata3, aes(x=math.score, fill = gender)) +geom_bar(position="stack")
+plt
+plt <- ggplot(mydata3, aes(x=reading.score, fill = gender)) +geom_bar(position="stack")
+plt
+plt <- ggplot(mydata3, aes(x=writing.score, fill = gender)) +geom_bar(position="stack")
+plt
+
+#using standardized tenchinque to normalize data
+library(caret)
+preproc1 <- preProcess(mydata3, method = c("center", "scale"))
+norm1 <- predict(preproc1, mydata3)
+summary(norm1)
+
+
+plt_math <- ggplot(norm1, aes(x = math.score, fill = gender)) +
+  geom_histogram(position = "stack", bins = 30) +
+  labs(x = "Math Score", y = "Count", fill = "Gender") +
+  theme_minimal()
+plt_math
+
+plt_reading <- ggplot(norm1, aes(x = reading.score, fill = gender)) +
+  geom_histogram(position = "stack", bins = 30) +
+  labs(x = "Reading Score", y = "Count", fill = "Gender") +
+  theme_minimal()
+plt_reading
+
+plt_writing <- ggplot(norm1, aes(x = writing.score, fill = gender)) +
+  geom_histogram(position = "stack", bins = 30) +
+  labs(x = "Writing Score", y = "Count", fill = "Gender") +
+  theme_minimal()
+plt_writing
+
+preproc2 <- preProcess(mydata3, method = c("range"))
+norm2 <- predict(preproc2, mydata3)
+summary(norm2)
+
+plt_math <- ggplot(norm2, aes(x = math.score, fill = gender)) +
+  geom_histogram(position = "stack", bins = 30) +
+  labs(x = "Math Score", y = "Count", fill = "Gender") +
+  theme_minimal()
+plt_math
+
+plt_reading <- ggplot(norm2, aes(x = reading.score, fill = gender)) +
+  geom_histogram(position = "stack", bins = 30) +
+  labs(x = "Reading Score", y = "Count", fill = "Gender") +
+  theme_minimal()
+plt_reading
+
+plt_writing <- ggplot(norm2, aes(x = writing.score, fill = gender)) +
+  geom_histogram(position = "stack", bins = 30) +
+  labs(x = "Writing Score", y = "Count", fill = "Gender") +
+  theme_minimal()
+plt_writing
+
+```
+
+## d. Data Preprocessing
+### In some cases, preprocessing is absolutely necessary. It is rarely a bad idea. Make the case for what is and is not necessary given what you plan to do with the data. This could include making dummy variables, applying normalization, binning and/or smoothing, and other transformations (see course module). 
+
+```{r }
+names(mydata3)
+str(mydata3)
+
+df <- mydata3
+names(df)
+df <- mydata3
+categorical_vars <- c("gender", "race.ethnicity", "parental.level.of.education", "lunch", "test.preparation.course")
+
+# Create dummy variables
+dummy_data <- model.matrix(~ . - 1, data = mydata3[, categorical_vars])
+
+# Convert the dummy variables to a dataframe
+dummy_data <- as.data.frame(dummy_data)
+
+# Combine the dummy variables with the original dataset
+predictors3 <- cbind(mydata3, dummy_data)
+predictors3$math.score <- mydata3$math.score
+```
+## e.Clustering
+### Remove any labels from your data and use clustering to discover any built-in structure. Use an appropriate method to determine the number of clusters. If your data have labels, compare the clusters to those labels. If not, visualize the clustering results by making a PCA projection and coloring the points by cluster assignment. Note that PCA only works for numerical variables, so if your data have just a few categoricals, you may skip them. If there are many, use dummy variables or choose a different method for making a projection. One way is to make the distance matrix first (we covered a method for distance matrices using categorical variables in the clustering tutorial) and then apply PCA to that matrix. This is actually a way to calculate an MDS projection, a very popular method. 
+
+```{r }
+library(factoextra)
+
+set.seed(123)
+sum(is.na(predictors3))
+predictors3 <- na.omit(predictors3)
+predictors3$gender <- factor(predictors3$gender)
+predictors3$race.ethnicity <- factor(predictors3$race.ethnicity)
+predictors3$parental.level.of.education <- factor(predictors3$parental.level.of.education)
+predictors3$lunch <- factor(predictors3$lunch)
+predictors3$test.preparation.course <- factor(predictors3$test.preparation.course)
+
+predictors3 <- predictors3[complete.cases(predictors3), ]
+
+kmeans_results <- fviz_nbclust(predictors3[, 6:8], kmeans, method = "wss")
+print(kmeans_results)
+#the wss score suggests k = 3
+predictors3 <- as.data.frame(sapply(predictors3, as.numeric))
+
+predictors3 <- predictors3[complete.cases(predictors3), ]
+
+fviz_nbclust(predictors3, kmeans, method = "silhouette")
+sum(is.na(predictors3))
+
+# the silhouette score suggests k = 2
+#fit the model
+fit <- kmeans(predictors3, centers = 4, nstart = 25)
+fit
+# visualizing the clusters using fviz_cluster
+fviz_cluster(fit, data = predictors3)
+
+#for comparison generating PCA plot
+pca <- prcomp(predictors3)
+# save as data frames
+rotated_data <- as.data.frame(pca$x)
+#rotated_data$Color <- df$gender
+nrow(df)
+nrow(rotated_data)
+sum(is.na(df$math.score))
+df <- mydata3
+# adding original label as testimonial
+subset_df <- df[1:nrow(rotated_data), ]
+rotated_data$Color <- subset_df$math.score
+# plot and color by labels
+ggplot(data = rotated_data, aes(x = PC1, y= PC2, col = Color)) + geom_point(alpha = 0.3)
+# assigning cluster a new column
+rotated_data$Clusters <- as.factor(fit$cluster)
+# plot and color by labels
+ggplot(data = rotated_data, aes(x = PC1, y= PC2, col = Clusters)) + geom_point()
+
+```
+Here are the performance metrics for the two models:
+
+kNN Model (k = 23):
+
+RMSE: 9.933031
+R-squared: 0.6750216
+MAE: 8.034454
+kNN Model (kmax = 7, distance = 2, kernel = cos):
+
+RMSE: 10.20985
+R-squared: 0.5564781
+MAE: 8.233648
+Based on these metrics, the first kNN model with k = 23 has a lower RMSE and a higher R-squared compared to the second kNN model. However, the second kNN model has a slightly lower MAE.
+
+## f.Classification
+### Use at least two classifiers to predict a label in your data. If a label was not provided with the data, use the clustering from the previous part. Follow the process
+
+```{r }
+# using knn to make predictions using math scorez
+ctrl <- trainControl(method = "cv", number = 10)
+knnFit <- train(math.score ~.,data = df, method = "knn", trControl = ctrl, preProcess = c("center", "scale"))
+knnFit
+# k is found to be 9
+# and now attempting to find the best value of k
+ctrl <- trainControl(method = "cv", number = 10)
+knnFit <- train(math.score ~., data = df,
+                method = "knn", trControl = ctrl, 
+                preProcess = c("center", "scale"),
+                tuneLength = 15)
+plot(knnFit)
+
+
+# now using grid search
+tuneGrid <- expand.grid(kmax = 3:7,
+                        kernel = c ("rectangular", "cos"),
+                        distance = 1:3)
+kknn_fit <- train(math.score ~.,data = df, method = "kknn",
+                  trControl = ctrl,
+                  preProcess = c ("center", "scale"),
+                  tuneGrid = tuneGrid)
+
+kknn_fit
+pred_knn <- predict(kknn_fit, df)
+df$math.score <- as.factor(df$math.score)
+pred_knn <- factor(pred_knn, levels = levels(df$math.score))
+
+cm<-confusionMatrix(df$math.score, pred_knn)
+cm
+
+```
+
+## g.Evaluation
+### Using the better classifier from the previous step, perform a more sophisticated evaluation using the tools of Week 9. Specifically, (1) produce a 2x2 confusion matrix (if your dataset has more than two classes, bin the classes into two groups and rebuild the model), (2) calculate the precision and recall manually, and finally (3) produce an ROC plot (see Tutorial 9). Explain how these performance measures makes your classifier look compared to accuracy. 
+
+```{r }
+library(tibble)
+library(caret)
+library(pROC)
+str(df$gender)
+df$gender <- as.factor(df$gender)
+index = createDataPartition(y = df$gender, p =0.7, list = FALSE)
+train_pima = df[index, ]
+test_pima = df[-index, ]
+
+ctrl <- trainControl(method = "cv", number = 10)
+knn <- train(gender ~ ., data = train_pima, method = "knn", trControl = ctrl, tuneLength = 20)
+knn
+
+pred_pima <- predict(knn, newdata = test_pima)
+
+levels <- levels(test_pima$gender)
+pred_pima <- factor(pred_pima, levels = levels)
+
+cm <-confusionMatrix(data = pred_pima, reference = test_pima$gender)
+cm
+
+metrics <- as.data.frame(cm$byClass)
+
+metrics <- as.data.frame(cm$byClass)
+metrics <- rownames_to_column(metrics, var = "Metric")
+metrics
+
+precision <- metrics$`cm$byClass`[metrics$Metric == "Pos Pred Value"]
+precision
+
+recall <- metrics$`cm$byClass`[metrics$Metric == "Recall"]
+recall
+
+names(metrics) <- c("Metric", "Value")
+metrics$Metric <- trimws(metrics$Metric)  
+
+specificity <- metrics$Value[metrics$Metric == "Specificity"]
+specificity
+
+f1 <- metrics$Value[metrics$Metric == "F1"]
+f1
+
+balanced_accuracy <- metrics$Value[metrics$Metric == "Balanced Accuracy"]
+balanced_accuracy
+
+library(pROC)
+pred_prob <- predict(knn, test_pima, type = "prob")
+head(pred_prob)
+# And now we can create an ROC curve for our model.
+roc_obj <- roc((test_pima$gender), pred_prob[,1])
+plot(roc_obj, print.auc = TRUE)
+```
+The AUC value of 0.7044 suggests that classifier is performing better than a random classifier, but it is not achieving a high level of discrimination between the two classes. The closer the AUC value is to 1, the better the classifier's performance in correctly classifying instances.
+
+
+## h.Report
+### In a single document, include the answers to all of the parts of this Problem, including this one. The report component specifically is about your overall takeaways from your data. What was interesting from your analysis? 
+
+According to my analysis accuracy measures show the performance of the classifier model which is used for prediction. STudent performance record is preprocessed before applying any model. Its distribution and normalization is witnessed to avoid any loss of accuracy. Furthermore k means clustering technique is used where accuracy measures show the performance of the classifier model and pca to visualized the sparsity of the data and to view any outliers within the data. This shows that the label has a significant impact over its features or instances however in this case is math.score. In addition, the data was fairly normal and any imbalanced data was balanced during the preprocessing phase.
+
+## i. Reflection
+### The final section of the report is a (short) paragraph reflecting on the course as a whole and what you have learned. The goal is not actually feedback for the course but to get you to think back about what you have learned and how your perspective on data science has changed.
+
+This course gave me a lot of insights into data science. Throughout the course, I learned different techniques of data mining, including clustering techniques such as HAC and Kmeans, and classification methods like SVM, decision trees, and knn. It covered various stages of the data mining pipeline, teaching me how to preprocess and normalize data, handle imbalanced data, and identify and handle noise and outliers. The course greatly improved my understanding of data science and its implications in different domains such as hospitals, image processing, and text documentation. I found the course to be highly beneficial in clarifying my understanding and highlighting the importance of data accuracy.
+
+
