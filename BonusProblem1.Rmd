@@ -1,0 +1,116 @@
+---
+title: "BonusQuestion1"
+output:
+  pdf_document: default
+  html_document: default
+date: "2023-04-23"
+---
+
+## Use the Sacremento data from the caret library by running data(Sacremento) after loading caret. This data is about housing prices in Sacramento, California. Remove the zip and city variables. 
+
+
+### a. Explore the variables to see if they have reasonable distributions and show your work. We will be predicting the type variable – does that mean we have a class imbalance?
+
+```{r cars}
+library(caret)
+data("Sacramento")
+names(Sacramento)
+sacramento <- Sacramento[, -c(1,2)]
+
+summary(sacramento)
+sum(is.na(sacramento))
+
+plt <- ggplot(sacramento, aes(x= price))+geom_histogram(binwidth = 10000)
+plt
+```
+
+
+```{r }
+plt9 <- ggplot(sacramento, aes(x= sqft))+geom_histogram(binwidth = 15)
+plt9
+```
+
+
+```{r }
+plt10 <- ggplot(sacramento, aes(x= sqft))+geom_histogram(binwidth = 10000)
+plt10
+```
+
+
+```{r }
+table(sacramento$type)
+```
+### b. There are lots of options for working on the data to try to improve the performance of SVM, including (1) removing other variables that you know should not be part of the prediction, (2) dealing with extreme variations in some variables with smoothing, normalization or a log transform, (3) applying PCA, and (4) to removing outliers. Pick one now and continue. 
+
+```{r }
+library(caret)
+
+
+sacramento_norm <- preProcess(sacramento, method = "range")
+sacramento_norm <- predict(sacramento_norm, sacramento)
+
+sacramento$log_price <- log(sacramento$price)
+sacramento$log_sqft <- log(sacramento$sqft)
+```
+
+### c. Use SVM to predict type and use grid search to get the best accuracy you can. The accuracy may be good, but look at the confusion matrix as well. Report what you find. Note that the kappa value provided with your SVM results can also help you see this. It is a measure of how well the classifier performed that takes into account the frequency of the classes. 
+
+```{r }
+sacramento$log_price_norm <- scale(sacramento$log_price)
+sacramento$log_sqft_norm <- scale(sacramento$log_sqft)
+sacramento_norm <- preProcess(sacramento[c("log_price", "log_sqft")], method = "range")
+sacramento_norm <- predict(sacramento_norm, sacramento[c("log_price", "log_sqft")])
+sacramento$log_price_norm <- sacramento_norm[,1]
+sacramento$log_sqft_norm <- sacramento_norm[,2]
+
+set.seed(123)
+
+ind <- createDataPartition(y = sacramento$type, p = 0.7, list = FALSE)
+train_Set <- sacramento[ind,]
+test_Set <- sacramento[-ind,]
+
+svm_grid <- expand.grid(C = 10^seq(-5,2,0.5))
+my_control <- trainControl(method = "cv", number = 5)
+svm_model <- train(type ~ ., data = train_Set, 
+                   method = "svmRadial", 
+                   preProcess = c("center", "scale"),
+                   tuneLength = 10,
+                   trControl = my_control)
+
+pred <- predict(svm_model, newdata = test_Set)
+
+confusionMatrix(pred, test_Set$type)
+
+```
+
+
+In this case, the confusion matrix shows that the SVM model correctly predicted 259 out of 277 instances of the Residential class, and incorrectly predicted 15 instances of the Condo class and 3 instances of the Multi_Family class as Residential. The overall accuracy of the model is 0.935,which means that it correctly classified 93.5% of the instances in the test set. the confucion matric shows the predicted values of SVM model. As we can see that model correctly predicted 259 and incorrectly predicted 15 instances of the Condo class and 3 instances of the Multi_Family class as Residential the overall accuracy of the model is 93.5% of the instances within the test set.
+
+
+### d. Return to (b) and try at least one other way to try to improve the data before running SVM again, as in (c). 
+
+```{r }
+outliers <- boxplot.stats(sacramento$price)$out
+sacramento <- subset(sacramento, !price %in% outliers)
+
+sacramento$log_price <- log(sacramento$price)
+sacramento$log_sqft <- log(sacramento$sqft)
+sacramento$log_price_norm <- scale(sacramento$log_price)
+sacramento$log_sqft_norm <- scale(sacramento$log_sqft)
+```
+
+```{r }
+set.seed(123)
+ind <- createDataPartition(y = sacramento$type, p = 0.7, list = FALSE)
+train_Set <- sacramento[ind,]
+test_Set <- sacramento[-ind,]
+
+svm_model <- train(type ~ ., data = train_Set, 
+                   method = "svmRadial", 
+                   preProcess = c("center", "scale"),
+                   tuneLength = 10,
+                   trControl = trainControl(method = "cv", number = 10))
+svm_model
+```
+
+

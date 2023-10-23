@@ -1,0 +1,167 @@
+---
+title: "Question3"
+output:
+  pdf_document: default
+  html_document: default
+date: "2023-04-23"
+---
+
+## We will take SVM further in this problem, showing how it often gets used even when the data are not suitable, by first engineering the numerical features we need. There is a Star Wars dataset in the dplyr library. Load that library and you will be able to see it (head(starwars)). There are some variables we will not use, so first remove films, vehicles, starships and name. Also remove rows with missing values 
+
+
+## a. Several variables are categorical. We will use dummy variables to make it possible for SVM to use these. Leave the gender category out of the dummy variable conversion to use as a categorical for prediction. Show the resulting head. 
+
+
+```{r cars}
+library(dplyr)
+library(caret)
+(head(starwars))
+
+starwar <- starwars %>%
+  select(-c("films", "vehicles", "starships", "name"))
+starwar <- na.omit(starwar)
+names(starwar)
+
+sum(is.na(starwar))
+
+```
+
+```{r }
+
+species_transformed <- dummyVars(species ~., data = starwar)
+dummyvar1 <- as.data.frame(predict(species_transformed, newdata = starwar))
+
+sex_transformed <- dummyVars(sex ~., data = starwar)
+dummyvar12 <- as.data.frame(predict(sex_transformed, newdata = starwar))
+
+haircolor_transformed <- dummyVars(hair_color ~., data = starwar)
+dummyvar3 <- as.data.frame(predict(haircolor_transformed, newdata = starwar))
+
+skincolor_transformed <- dummyVars(skin_color ~., data = starwar)
+dummyvar4 <- as.data.frame(predict(skincolor_transformed, newdata = starwar))
+
+eyecolor_transformed <- dummyVars(eye_color ~., data = starwar)
+dummyvar5 <- as.data.frame(predict(eyecolor_transformed, newdata = starwar))
+
+homeworld_dummy <- dummyVars(homeworld ~ ., data = starwar)
+dummyvar6 <- as.data.frame(predict(homeworld_dummy, newdata = starwar))
+
+starwar_transformed <- bind_cols(
+  select(starwar, -c(species, hair_color, skin_color, eye_color, homeworld)),
+  dummyvar1,
+  dummyvar12,
+  dummyvar3,
+  dummyvar4,
+  dummyvar5,
+  dummyvar6
+)
+head(starwar_transformed)
+
+```
+
+### b.Use SVM to predict gender and report the accuracy. 
+
+
+```{r}
+library(caret)
+library(e1071)
+library(caTools)
+library(dplyr)
+set.seed(123)
+
+names(starwar_transformed)
+split <- sample.split (starwar_transformed$gender, SplitRatio = 0.7)
+train <- subset(starwar_transformed, split = True)
+test <- subset(starwar_transformed, split = FALSE)
+```
+
+```{r}
+train$gender <- as.factor(train$gender)
+test$gender <- as.factor(test$gender)
+model1 <- svm(gender ~., data = train)
+
+pred <- predict(model1, test)
+table (pred, starwar_transformed$gender)
+check_Aaccuracy <- sum(pred == starwar_transformed$gender)/nrow(test)
+check_Aaccuracy 
+```
+
+### c. Given that we have so many variables, it makes sense to consider using PCA. Run PCA on the dataand determine an appropriate number of components to use. Document how you made   the decision, including any graphs you used. Create a reduced version of the data with that number of principle components. Note: make sure to remove gender from the data before running PCA  because it would be cheating if PCA had access to the label you will use. Add it back in after reducing the data and show the result. 
+
+
+```{r}
+numeric_cols <- sapply(starwar_transformed, is.numeric)
+starwars_pca <- starwar_transformed[, numeric_cols]
+pc1 <- prcomp(starwars_pca, center = TRUE, scale = TRUE)
+plot(pc1)
+plot(cumsum(pc1$sdev^2)/sum(pc1$sdev^2))
+
+
+cum_var <- cumsum(pc1$sdev^2)/sum(pc1$sdev^2)
+n_components <- sum(cum_var <= 0.9)
+n_components
+
+
+pca_data <- data.frame(pc1$x[, 1:n_components])
+pca_data$gender <- starwar_transformed$gender
+```
+
+### d. Use SVM to predict gender again, but this time use the data resulting from PCA. Evaluate the results with a confusion matrix and at least two partitioning methods, using grid search on the C parameter each time. 
+
+
+```{r}
+library(caret)
+library(e1071)
+```
+
+```{r}
+
+train <- train[complete.cases(train), ]
+sum(is.na(train))
+
+
+numeric_cols <- sapply(starwar_transformed, is.numeric)
+starwars_pca <- starwar_transformed[, numeric_cols]
+starwars_pca$gender <- NULL
+
+pc1 <- prcomp(starwars_pca, center = TRUE, scale = TRUE)
+cum_var <- cumsum(pc1$sdev^2) / sum(pc1$sdev^2)
+n_components <- sum(cum_var <= 0.9)
+pca_data <- data.frame(pc1$x[, 1:n_components])
+pca_data$gender <- starwar_transformed$gender
+
+set.seed(123)
+split <- sample.split(pca_data$gender, SplitRatio = 0.7)
+train <- subset(pca_data, split == TRUE)
+test <- subset(pca_data, split == FALSE)
+
+grid_linear <- expand.grid(C = c(0.01, 0.1, 1, 10, 100))
+
+svm_cv <- trainControl(method = "cv", number = 5)
+
+model_linear <- train(gender ~ ., data = train, method = "svmLinear",
+                      tuneGrid = grid_linear, trControl = svm_cv)
+pred_linear <- predict(model_linear, newdata = test)
+test$gender <- factor(test$gender, levels = c("male", "female"))
+pred_linear <- factor(pred_linear, levels = c("male", "female"))
+confusionMatrix(pred_linear, test$gender)
+
+```
+
+```{r}
+grid <- expand.grid(C = c(0.01, 0.1, 1, 10),
+                    sigma = c(0.1, 1, 10))
+tuneGrid <- as.matrix(unique(grid))
+model_radial <- train(gender ~ ., data = train, method = "svmRadial",
+                      tuneGrid = grid, trControl = svm_cv)
+
+pred_radial <- predict(model_radial, newdata = test)
+pred_radial <- factor(pred_radial, levels = levels(test$gender))
+confusionMatrix(pred_radial, test$gender)
+```
+### e.Whether or not it has improved the accuracy, what has PCA done for the complexity of the model? 
+
+It has reduced the complexity of the model specifically by reducing the numbe of featues. In the original dataset there were many attributes which might result in increased complexity and overfitting. Therefore, by applying PCA the dimensionality of the data is reduced which aso reduced the chance of overfitting.
+
+
+

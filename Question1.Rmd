@@ -1,0 +1,265 @@
+---
+title: "Question1"
+date: "2023-04-22"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+### For this problem, you will load and perform some cleaning steps on a dataset in the provided BankData.csv, which is data about loan approvals from a bank in Japan (it has been modified from the original for our purposes in class, so use the provided version). Specifically, you will use visualization to examine thevariables and normalization, binning and smoothing to change them in particular ways. 
+
+### a.Visualize the distributions of the variables in this data. You can choose bar graphs, histograms and density plots. Make appropriate choices given each type of variables and be careful when selecting parameters like the number of bins for the histograms. Note there are some numerical variables and some categorical ones. The ones labeled as a ‘bool’ are Boolean variables, meaning they are only true or false and are thus a special type of categorical. Checking all the distributions with visualization and summary statistics is a typical step when beginning to work with new data. 
+
+
+```{r}
+mydata1 <- read.csv("C:/Users/HP/Documents/RScript/BankData.csv")
+View(mydata1)
+summary(mydata1)
+library(dplyr)
+```
+
+```{r}
+library(tidyr)
+clean_mydata <- mydata1 %>% drop_na(cont1) %>% drop_na(cont5) %>% 
+  select(X, cont1, cont2, cont3, bool1, bool2, cont4, bool3, cont5, cont6, approval, credit.score, ages)
+summary(clean_mydata)
+```
+
+
+```{r}
+ sum(is.na(clean_mydata))
+
+mydata1$cont5 <- as.numeric(mydata1$cont5) %>% replace_na(mean(mydata1$cont5, na.rm = TRUE)) %>% as.integer()
+ summary(mydata1)
+```
+visualizing the cleaned data
+
+
+```{r}
+library(ggplot2)
+plt3 <- ggplot(clean_mydata, aes (x=bool1)) + geom_bar(position = "stack")
+ plt3
+ plt3 <- ggplot(clean_mydata, aes (x=bool1)) + geom_bar(position = "identity")
+ plt3
+ plt3 <- ggplot(clean_mydata, aes (x=bool1)) + geom_bar(position = "identity")
+ plt3
+ plt4 <- ggplot(clean_mydata, aes (x=bool2)) + geom_bar(position = "identity")
+ plt4
+ 
+```
+
+```{r}
+plt5 <- ggplot(clean_mydata, aes (x=cont4)) + geom_histogram(bins = 10)
+plt5
+```
+
+```{r}
+plt7 <- ggplot(clean_mydata, aes (x=cont5, fill=approval)) + geom_histogram(bins=10)
+plt7
+
+plt8 <- ggplot(clean_mydata, aes (x=cont6, fill = approval)) + geom_histogram(bins=5)
+plt8
+plt9 <- ggplot(clean_mydata, aes (x=ages)) + geom_histogram(bins = 10)
+plt9
+plt10 <- ggplot(clean_mydata, aes (x=credit.score)) +geom_histogram(bins = 10)
+plt10
+```
+
+```{r}
+plt11 <- ggplot(clean_mydata, aes(x=credit.score, fill = approval)) + geom_density(adjust=1.5, position = "fill")
+plt11
+plt12 <- ggplot(clean_mydata, aes(x=ages, fill = approval)) + geom_density(adjust=1.5, position = "fill")
+plt12
+```
+
+```{r}
+ggplot(clean_mydata) +
+       geom_density(aes(x = cont1, fill = "cont1"), alpha = 0.5) +
+       geom_density(aes(x = cont2, fill = "cont2"), alpha = 0.5) +
+       geom_density(aes(x = cont3, fill = "cont3"), alpha = 0.5) +
+       geom_density(aes(x = cont4, fill = "cont4"), alpha = 0.5) +
+       scale_fill_manual(name = "Variable", values = c("cont1" = "blue", "cont2" = "green", "cont3" = "red", "cont4" = "purple")) +
+       xlab("No. of Conts") +
+       theme_classic()
+```
+
+
+### b.Now apply normalization to some of these numerical distributions. Specifically, choose to apply zscore to one, min-max to another, and decimal scaling to a third. Explain your choices of which normalization applies to which variable in terms of what the variable means, what distribution it starts with, and how the normalization will affect it. 
+
+```{r}
+library(reshape2)
+library(gridExtra)
+library(magrittr) 
+ summary(clean_mydata)
+ names(clean_mydata)
+ normalized_data <- clean_mydata
+ z_score <- function(y) {
+       res <- (y - mean(y, na.rm = TRUE))/sd(y, na.rm = TRUE)
+       return(res)
+ }
+ 
+ min_max <- function(x){
+   res <- (x - min(x)) / (max(x) - min(x))
+   return(res)}
+ 
+ 
+res1 <- as.data.frame(lapply(normalized_data[, 2:4], z_score))
+ summary(res1)
+ res_conts <- as.data.frame(lapply(clean_mydata[, 9:10], min_max))
+ summary(clean_mydata$cont5)
+ summary(clean_mydata$cont6)
+ summary(res_conts)
+ summary(clean_mydata$cont5, clean_mydata$cont6)
+ 
+```
+
+```{r}
+ decimal_scale <- function(x) {
+   x / (10 ^ (ceiling(log10(max(abs(x)))) + 1))
+ }
+ clean_mydata$cont4 <- decimal_scale(clean_mydata$cont4)
+ res4 <- clean_mydata$ages %>% decimal_scale()
+ head(clean_mydata$cont4)
+ summary(clean_mydata$cont4)
+ res5_df <- data.frame(cont4 = res4)
+ 
+ 
+ res4_df <- data.frame(ages = res4)
+ summary(res4_df)
+ 
+ 
+ res44 <- clean_mydata$credit.score %>% decimal_scale()
+ res44_df <- data.frame(credit.score = res4)
+ summary(res44_df)
+ 
+ 
+ res43 <- clean_mydata$cont1 %>% decimal_scale()
+ res43_df <- data.frame(cont1 = res43)
+ summary(res43_df)
+ 
+ 
+ res42 <- clean_mydata$cont2 %>% decimal_scale()
+ res42_df <- data.frame(cont2 = res42)
+ summary(res42_df)
+ 
+ 
+ res41 <- clean_mydata$cont3 %>% decimal_scale()
+ res41_df <- data.frame(cont3 = res4)
+ summary(res4_df)
+```
+### c.  Visualize the new distributions for the variables that have been normalized. What has changed from the previous visualization? 
+
+```{r}
+plt_zscore <- ggplot(res1, aes(x=cont1)) + geom_histogram(bins = 20)
+
+plt_zscore1 <- ggplot(res1, aes(x=cont2)) + geom_histogram(bins = 20)
+
+plt_zscore2 <- ggplot(res1, aes(x=cont3)) + geom_histogram(bins = 20)
+
+grid.arrange(plt_zscore, plt_zscore1, plt_zscore2, ncol = 3)
+ 
+ plt_minmax <- ggplot(res_conts, aes(x=cont5)) + geom_histogram(bins = 20)
+
+plt_minmax1 <- ggplot(res_conts, aes(x=cont6)) + geom_histogram(bins = 20)
+
+plt_minmax3 <- ggplot(clean_mydata, aes(x=cont5)) + geom_histogram(bins = 20)
+
+plt_minmax4 <- ggplot(clean_mydata, aes(x=cont6)) + geom_histogram(bins = 20)
+
+grid.arrange(plt_minmax, plt_minmax1,plt_minmax3,plt_minmax4 , ncol = 4)
+
+ 
+ plt_decimalscale <- ggplot(res5_df, aes(x=cont4)) + geom_histogram(bins = 20)
+plt_decimalscale2 <- ggplot(clean_mydata, aes(x=cont4)) + geom_histogram(bins = 20)
+
+plt_decimalscale <- ggplot(res4_df, aes(x=ages)) + geom_histogram(bins = 20)
+plt_decimalscale2 <- ggplot(clean_mydata, aes(x=ages)) + geom_histogram(bins = 20)
+
+plt_decimalscale4 <- ggplot(res44_df, aes(x=credit.score)) + geom_histogram(bins = 20)
+plt_decimalscale24 <- ggplot(clean_mydata, aes(x=credit.score)) + geom_histogram(bins = 20)
+
+grid.arrange(plt_decimalscale4, plt_decimalscale24, ncol = 2)
+
+plt_decimalscale3 <- ggplot(res43_df, aes(x=cont1)) + geom_histogram(bins = 20)
+
+plt_decimalscale23 <- ggplot(clean_mydata, aes(x=cont1)) + geom_histogram(bins = 20)
+
+grid.arrange(plt_decimalscale3, plt_decimalscale23, ncol = 2)
+
+plt_decimalscale2 <- ggplot(res42_df, aes(x=cont2)) + geom_histogram(bins = 20)
+
+plt_decimalscale22 <- ggplot(clean_mydata, aes(x=cont2)) + geom_histogram(bins = 20)
+
+
+
+grid.arrange(plt_decimalscale2, plt_decimalscale22, ncol = 2)
+
+plt_decimalscale2_1 <- ggplot(res41_df, aes(x=cont3)) + geom_histogram(bins = 20)
+
+plt_decimalscale21 <- ggplot(clean_mydata, aes(x=cont3)) + geom_histogram(bins = 20)
+
+grid.arrange(plt_decimalscale2_1, plt_decimalscale21, ncol = 2)
+
+grid.arrange(plt_decimalscale, plt_decimalscale2, ncol = 2)
+
+grid.arrange(plt_decimalscale4, plt_decimalscale24, ncol = 2)
+
+grid.arrange(plt_decimalscale3, plt_decimalscale23, ncol = 2)
+
+grid.arrange(plt_decimalscale2, plt_decimalscale22, ncol = 2)
+
+grid.arrange(plt_decimalscale2_1, plt_decimalscale21, ncol = 2)
+```
+
+### d. Choose one of the numerical variables to work with for this problem. Let’s call it v. Create a new variable called v_bins that is a binned version of that variable. This v_bins will have a new set of values like low, medium, high. Choose the actual new values (you don’t need to use low, medium, high) and the ranges of v that they represent based on your understanding of v from your visualizations. You can use equal depth, equal width or custom ranges. Explain your choices: why did you choose to create that number of values and those particular ranges? 
+
+
+```{r}
+
+library(dplyr)
+names(clean_mydata)
+# considering v = ages
+ages_bin <- clean_mydata
+ages_bin %>%
+  mutate(AgesFactor = cut(ages, breaks = 4, labels=c("Bin 1", "Bin 2", "Bin 3", "Bin 4"))) %>% head()
+
+```
+
+The main reason for choosing four bins is that it provides a good balance between too few bins, which may oversimplify the data, and too many bins, which may result in overfitting. Bins were chosen to ensure that each bin had an approximately equal number of observations.
+
+
+### e. Building on (d), use v_bins to create a smoothed version of v. Choose a smoothing strategy to create a numerical version of the binned variable and explain your choices
+
+```{r}
+Bin1 <- ages_bin %>% 
+  mutate(AgesFactor = cut(ages, breaks = 4, labels=c("Bin 1", "Bin 2", "Bin 3", "Bin 4"))) %>% 
+  filter(AgesFactor == 'Bin 1') %>% 
+  mutate(ages = mean(ages, na.rm = TRUE))
+Bin2 <- ages_bin %>% 
+  mutate(AgesFactor = cut(ages, breaks = 4, labels=c("Bin 1", "Bin 2", "Bin 3", "Bin 4"))) %>% 
+  filter(AgesFactor == 'Bin 2') %>% 
+  mutate(ages = mean(ages, na.rm = TRUE))
+Bin3 <- ages_bin %>% 
+  mutate(AgesFactor = cut(ages, breaks = 4, labels=c("Bin 1", "Bin 2", "Bin 3", "Bin 4"))) %>% 
+  filter(AgesFactor == 'Bin 3') %>% 
+  mutate(ages = mean(ages, na.rm = TRUE))
+Bin4 <- ages_bin %>% 
+  mutate(AgesFactor = cut(ages, breaks = 4, labels=c("Bin 1", "Bin 2", "Bin 3", "Bin 4"))) %>% 
+  filter(AgesFactor == 'Bin 4') %>% 
+  mutate(ages = mean(ages, na.rm = TRUE))
+
+```
+
+
+```{r}
+bind_rows(list(Bin1, Bin2, Bin3, Bin4))
+
+```
+Smooth out ages into 4 different buckets because of the larger dataset. The chosen smoothing strategy in this case is to compute the mean age for each of the four age groups defined by the cut function. This strategy works well for the current dataset because it allows us to reduce the impact of outliers and other extreme values that might skew the distribution of the ages variable
+

@@ -1,0 +1,83 @@
+---
+title: "Question2"
+output:
+  pdf_document: default
+  html_document: default
+date: "2023-04-23"
+---
+
+## This is the first homework problem using machine learning algorithms. You will perform a straightforward training and evaluation of a support vector machine on the bank data from Problem 1. Start with a fresh copy, but be sure to remove rows with missing values first. 
+
+```{r}
+library(dplyr)
+library(tidyr)
+mydata3 <- read.csv("C:/Users/HP/Documents/RScript/BankData.csv")
+View(mydata3)
+summary(mydata3)
+
+clean_mydata <- mydata3 %>% drop_na(cont1) %>% drop_na(cont5) %>% 
+  select(X, cont1, cont2, cont3, bool1, bool2, cont4, bool3, cont5, cont6, approval, credit.score, ages)
+summary(clean_mydata)
+
+sum(is.na(clean_mydata))
+```
+
+### a. Apply SVM to the data from Problem 1 to predict approval and report the accuracy using 10-fold cross validation. 
+
+```{r }
+library(caret)
+library(e1071)
+
+#train SVM
+set.seed(123)
+folds<-10
+idx <-createFolds(clean_mydata$approval, folds, returnTrain = TRUE)
+train_control_strat <- trainControl(index = idx, method = 'cv', number = folds)
+
+svm_strat <- train(approval ~., data = clean_mydata, method = "svmLinear", trControl = train_control_strat)
+
+svm_strat
+```
+
+
+```{r}
+train_control = trainControl(method = "cv", number = 10)
+preproc = c("center", "scale")
+
+svm2 <- train(approval ~., data = clean_mydata, method = "svmLinear", 
+              trControl = train_control, preProcess = preproc)
+
+svm2
+```
+
+
+```{r }
+#evaluating accuracy
+set.seed(123)
+index = createDataPartition(y=clean_mydata$approval, p=0.7, list=FALSE)
+train_set = clean_mydata[index,]
+test_set = clean_mydata[-index,]
+
+pred_split <- predict(svm2, test_set)
+
+sum(pred_split == test_set$approval) / nrow(test_set)
+
+```
+
+### b. Next, use the grid search functionality when training to optimize the C parameter of the SVM. What parameter was chosen and what is the accuracy? 
+
+
+```{r }
+grid <- expand.grid(C = seq(0.1, 10, by = 0.1))
+
+svm_grid <- train(approval ~., data = clean_mydata, method = "svmLinear", 
+                  trControl = train_control, tuneGrid = grid)
+svm_grid
+```
+Based on the output of the SVM model, it appears that the model is consistently predicting the approval status of the loans with an accuracy of approximately 86%.However, the model is not really improving with an increase in the value of C and the kappa score is also consistent across all values of C. 
+
+
+### c. Sometimes even if the grid of parameters in (b) includes the default value of C = 1 (used in (a)), the accuracy result will be different for this value of C. What could make that different? 
+
+
+The default can be considered as a good starting point but this is not always the case.There are many factors whcih are involves like size, quality or the data set, parameters etc, Hence, if the C=1 by default there is a chance that other values of C might be more appropriate and can increase accuracy.
